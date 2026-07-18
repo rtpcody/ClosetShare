@@ -4,6 +4,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
+import OutfitFacets from "@/components/OutfitFacets";
 import { WAIVER_TEXT } from "@/lib/waiver";
 
 export default function OutfitDetail({ params }) {
@@ -101,6 +102,7 @@ export default function OutfitDetail({ params }) {
               </span>
             </div>
             <div className="tags mb">
+              <OutfitFacets outfit={o} />
               {o.tags.map((t) => (
                 <Link className="tag" key={t} href={`/search?tag=${encodeURIComponent(t)}`}>
                   {t}

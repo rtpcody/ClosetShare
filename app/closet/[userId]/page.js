@@ -4,6 +4,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
+import OutfitFacets from "@/components/OutfitFacets";
 
 // The signature moment: entering a friend's closet swings open two wooden
 // doors before revealing their outfits.
@@ -111,7 +112,8 @@ export default function Closet({ params }) {
                       />
                       <div className="ci-body">
                         <div className="ci-title">{o.title}</div>
-                        <div className="muted small">{o.tags.join(" · ")}</div>
+                        <div className="muted small mb">{o.tags.join(" · ")}</div>
+                        <OutfitFacets outfit={o} small />
                         {o.status !== "available" && o.expectedBack && (
                           <div className="muted small">Back {o.expectedBack}</div>
                         )}

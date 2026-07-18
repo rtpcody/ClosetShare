@@ -5,21 +5,26 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
-
-const QUICK = ["wedding", "bridesmaid", "black-tie", "formal", "cocktail", "date night", "casual"];
+import OutfitFacets from "@/components/OutfitFacets";
+import { KINDS, EVENT_TAGS, COLORS } from "@/lib/taxonomy";
 
 function SearchInner() {
   const params = useSearchParams();
   const [tag, setTag] = useState(params.get("tag") || "");
   const [query, setQuery] = useState(params.get("tag") || "");
+  const [kind, setKind] = useState("");
+  const [color, setColor] = useState("");
   const [outfits, setOutfits] = useState(null);
 
   useEffect(() => {
-    const url = query ? `/api/outfits?tag=${encodeURIComponent(query)}` : "/api/outfits";
-    fetch(url)
+    const qs = new URLSearchParams();
+    if (query) qs.set("tag", query);
+    if (kind) qs.set("kind", kind);
+    if (color) qs.set("color", color);
+    fetch(`/api/outfits${qs.size ? `?${qs}` : ""}`)
       .then((r) => (r.ok ? r.json() : { outfits: [] }))
       .then((d) => setOutfits(d.outfits || []));
-  }, [query]);
+  }, [query, kind, color]);
 
   return (
     <div className="screen">
@@ -28,19 +33,46 @@ function SearchInner() {
         value={tag}
         onChange={(e) => setTag(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && setQuery(tag.trim())}
-        placeholder="Search friends' closets by tag…"
+        placeholder="Search friends' closets by event tag…"
       />
+      <label>Event style</label>
       <div className="tags mb">
-        {QUICK.map((t) => (
+        {EVENT_TAGS.map((t) => (
           <button
             key={t}
             className={`tag ${query === t ? "on" : ""}`}
             onClick={() => {
-              setTag(t);
-              setQuery(t);
+              const next = query === t ? "" : t;
+              setTag(next);
+              setQuery(next);
             }}
           >
             {t}
+          </button>
+        ))}
+      </div>
+      <label>Type of clothing</label>
+      <div className="tags mb">
+        {KINDS.map((k) => (
+          <button
+            key={k.value}
+            className={`tag kind ${kind === k.value ? "on" : ""}`}
+            onClick={() => setKind(kind === k.value ? "" : k.value)}
+          >
+            {k.label}
+          </button>
+        ))}
+      </div>
+      <label>Color</label>
+      <div className="tags mb">
+        {Object.entries(COLORS).map(([name, hex]) => (
+          <button
+            key={name}
+            className={`color-chip ${color === name ? "on" : ""}`}
+            onClick={() => setColor(color === name ? "" : name)}
+          >
+            <span className="color-dot" style={{ background: hex }} />
+            {name}
           </button>
         ))}
       </div>
@@ -49,8 +81,8 @@ function SearchInner() {
         <div className="empty">
           <div className="big">🕵️</div>
           <p>
-            {query
-              ? `Nothing tagged "${query}" in your friends' closets yet.`
+            {query || kind || color
+              ? "Nothing in your friends' closets matches those filters yet."
               : "Follow friends to search their closets."}
           </p>
         </div>
@@ -66,10 +98,11 @@ function SearchInner() {
               />
               <div className="ci-body">
                 <div className="ci-title">{o.title}</div>
-                <div className="row" style={{ gap: 6 }}>
+                <div className="row mb" style={{ gap: 6 }}>
                   <Avatar user={o.owner} size="sm" />
                   <span className="muted small">{o.owner.name.split(" ")[0]}</span>
                 </div>
+                <OutfitFacets outfit={o} small />
               </div>
             </Link>
           ))}

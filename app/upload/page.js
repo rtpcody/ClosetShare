@@ -2,8 +2,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Nav from "@/components/Nav";
-
-const SUGGESTED = ["wedding", "bridesmaid", "black-tie", "formal", "cocktail", "rehearsal", "date night", "casual", "gala"];
+import { KINDS, EVENT_TAGS, COLORS } from "@/lib/taxonomy";
+import { detectColors } from "@/lib/detectColors";
 
 function UploadForm() {
   const router = useRouter();
@@ -13,11 +13,25 @@ function UploadForm() {
   const [albumPhotos, setAlbumPhotos] = useState([]);
   const [picked, setPicked] = useState(null); // {kind:'album', photo} | {kind:'file', dataUrl}
   const [title, setTitle] = useState("");
+  const [kind, setKind] = useState("");
   const [tags, setTags] = useState([]);
+  const [colors, setColors] = useState([]);
+  const [detecting, setDetecting] = useState(false);
   const [customTag, setCustomTag] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Auto-compile color tags from the chosen photo; user can adjust after.
+  async function autoDetect(src) {
+    setDetecting(true);
+    try {
+      setColors(await detectColors(src));
+    } catch {
+      setColors([]);
+    }
+    setDetecting(false);
+  }
 
   useEffect(() => {
     fetch("/api/album")
@@ -29,6 +43,7 @@ function UploadForm() {
           if (p) {
             setPicked({ kind: "album", photo: p });
             setTitle(p.suggestedTitle || "");
+            autoDetect(p.image);
           }
         }
       });
@@ -38,7 +53,10 @@ function UploadForm() {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setPicked({ kind: "file", dataUrl: reader.result });
+    reader.onload = () => {
+      setPicked({ kind: "file", dataUrl: reader.result });
+      autoDetect(reader.result);
+    };
     reader.readAsDataURL(f);
   }
 
@@ -55,7 +73,7 @@ function UploadForm() {
   async function submit() {
     setBusy(true);
     setError("");
-    const body = { title, tags, note };
+    const body = { title, tags, note, kind, colors };
     if (picked?.kind === "album") body.existingImage = picked.photo.image;
     if (picked?.kind === "file") body.imageDataUrl = picked.dataUrl;
     const res = await fetch("/api/outfits", {
@@ -110,6 +128,7 @@ function UploadForm() {
                   onClick={() => {
                     setPicked({ kind: "album", photo: p });
                     if (!title) setTitle(p.suggestedTitle || "");
+                    autoDetect(p.image);
                   }}
                   style={{
                     width: 84,
@@ -137,15 +156,27 @@ function UploadForm() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Emerald wrap dress"
         />
-        <label>Tags — how friends will find it</label>
+        <label>Type of clothing</label>
         <div className="tags mb">
-          {SUGGESTED.map((t) => (
+          {KINDS.map((k) => (
+            <button
+              key={k.value}
+              className={`tag kind ${kind === k.value ? "on" : ""}`}
+              onClick={() => setKind(k.value)}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <label>Event style — how friends will find it</label>
+        <div className="tags mb">
+          {EVENT_TAGS.map((t) => (
             <button key={t} className={`tag ${tags.includes(t) ? "on" : ""}`} onClick={() => toggleTag(t)}>
               {t}
             </button>
           ))}
           {tags
-            .filter((t) => !SUGGESTED.includes(t))
+            .filter((t) => !EVENT_TAGS.includes(t))
             .map((t) => (
               <button key={t} className="tag on" onClick={() => toggleTag(t)}>
                 {t} ✕
@@ -162,6 +193,27 @@ function UploadForm() {
           />
           <button className="btn subtle" onClick={addCustomTag}>Add</button>
         </div>
+        <label>
+          Colors {detecting ? "· detecting…" : "· auto-detected from the photo, tap to adjust"}
+        </label>
+        <div className="tags mb">
+          {Object.entries(COLORS).map(([name, hex]) => (
+            <button
+              key={name}
+              className={`color-chip ${colors.includes(name) ? "on" : ""}`}
+              onClick={() =>
+                setColors((prev) =>
+                  prev.includes(name)
+                    ? prev.filter((c) => c !== name)
+                    : [...prev, name].slice(-3)
+                )
+              }
+            >
+              <span className="color-dot" style={{ background: hex }} />
+              {name}
+            </button>
+          ))}
+        </div>
         <label>Notes for borrowers (size, fit, quirks)</label>
         <textarea
           rows={2}
@@ -173,7 +225,7 @@ function UploadForm() {
 
       <button
         className="btn block"
-        disabled={busy || !picked || !title || tags.length === 0}
+        disabled={busy || !picked || !title || !kind || tags.length === 0}
         onClick={submit}
       >
         {busy ? "Posting…" : "Post to my closet"}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
+import OutfitFacets from "@/components/OutfitFacets";
 import { downloadReturnIcs } from "@/lib/ics";
 
 function timeAgo(ts) {
@@ -126,6 +127,7 @@ export default function Feed() {
                 <p className="muted small mb">Expected back {p.expectedBack}</p>
               )}
               <div className="tags">
+                <OutfitFacets outfit={p} />
                 {p.tags.map((t) => (
                   <Link className="tag" key={t} href={`/search?tag=${encodeURIComponent(t)}`}>
                     {t}

@@ -13,6 +13,7 @@ import {
   uid,
 } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
+import { KIND_VALUES, COLOR_NAMES } from "@/lib/taxonomy";
 
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const EXT_FOR = {
@@ -23,8 +24,8 @@ const EXT_FOR = {
   "image/svg+xml": ".svg",
 };
 
-// GET /api/outfits?ownerId=X   -> a friend's closet (or your own)
-// GET /api/outfits?tag=X       -> tag search across your friends' closets
+// GET /api/outfits?ownerId=X                -> a friend's closet (or your own)
+// GET /api/outfits?tag=X&kind=Y&color=Z     -> faceted search across friends' closets
 export async function GET(req) {
   const db = readDb();
   const me = await currentUser(db);
@@ -33,6 +34,8 @@ export async function GET(req) {
   const url = new URL(req.url);
   const ownerId = url.searchParams.get("ownerId");
   const tag = url.searchParams.get("tag");
+  const kind = url.searchParams.get("kind");
+  const color = url.searchParams.get("color");
 
   if (ownerId) {
     const owner = findUser(db, ownerId);
@@ -58,6 +61,8 @@ export async function GET(req) {
       o.tags.some((x) => x.toLowerCase().includes(t))
     );
   }
+  if (kind) outfits = outfits.filter((o) => (o.kind || "outfit") === kind);
+  if (color) outfits = outfits.filter((o) => (o.colors || []).includes(color));
   outfits = outfits
     .sort((a, b) => b.createdAt - a.createdAt)
     .map((o) => ({ ...withLoanInfo(db, o), owner: publicUser(findUser(db, o.ownerId)) }));
@@ -71,7 +76,7 @@ export async function POST(req) {
   const me = await currentUser(db);
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { title, tags, note, imageDataUrl, existingImage } = await req.json();
+  const { title, tags, note, kind, colors, imageDataUrl, existingImage } = await req.json();
   if (!title || !title.trim()) {
     return NextResponse.json({ error: "Give the outfit a name." }, { status: 400 });
   }
@@ -80,8 +85,14 @@ export async function POST(req) {
     .filter(Boolean)
     .slice(0, 8);
   if (cleanTags.length === 0) {
-    return NextResponse.json({ error: "Add at least one tag so friends can find it." }, { status: 400 });
+    return NextResponse.json({ error: "Add at least one event tag so friends can find it." }, { status: 400 });
   }
+  if (!KIND_VALUES.includes(kind)) {
+    return NextResponse.json({ error: "Pick a clothing type." }, { status: 400 });
+  }
+  const cleanColors = (Array.isArray(colors) ? colors : [])
+    .filter((c) => COLOR_NAMES.includes(c))
+    .slice(0, 3);
 
   let image = null;
   if (existingImage && String(existingImage).startsWith("/api/images/")) {
@@ -106,6 +117,8 @@ export async function POST(req) {
     image,
     title: title.trim(),
     tags: cleanTags,
+    kind,
+    colors: cleanColors,
     note: (note || "").trim(),
     status: "available",
     createdAt: Date.now(),

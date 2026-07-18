@@ -26,9 +26,11 @@ or create your own account.
    includes the Google Photos outfit-search tip).
 1. **Accounts + mutual follow** — follow requests must be accepted; only mutual friends can
    see each other's closets, feeds, and send borrow requests.
-2. **Outfit posts with tags** — photo upload (or pick from the simulated "Lending album"),
-   name, tags (wedding, bridesmaid, black-tie, …), borrower notes. Folder sync is simulated:
-   the feed shows a "N new photos in your Lending album" prompt on open.
+2. **Outfit posts with structured tags** — photo upload (or pick from the simulated
+   "Lending album"), name, **clothing type** (dress, suit/tux, shoes, …), **event style**
+   tags (wedding, bridesmaid, black-tie, …), borrower notes, and **auto-detected colors**
+   compiled from the photo's pixels at upload time (adjustable before posting). Folder sync
+   is simulated: the feed shows a "N new photos in your Lending album" prompt on open.
 3. **Feed** — Strava-style activity feed of friends' new outfit posts, with status badges.
 4. **Closet view** — tapping into a profile plays the signature **two-door closet opening
    animation** (CSS 3D), then reveals the outfit grid on a wooden rail.
@@ -44,7 +46,8 @@ or create your own account.
    the item's settings.
 7. **Date-aware browsing** — a "I need it for a date…" filter in closets shows what's free
    (or expected back) in time, using loan return-by dates.
-8. **Tag search** across friends' closets ("I need something for a wedding").
+8. **Faceted search** across friends' closets: event style + clothing type + color combine
+   ("a green dress for a wedding").
 9. **Calendar, minimally** — no calendar reading: the app offers an "Add return date to my
    calendar" (.ics) download and shows a return reminder banner in the feed.
 
