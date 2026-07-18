@@ -50,7 +50,14 @@ export async function GET(req) {
       .filter((o) => o.ownerId === ownerId)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((o) => withLoanInfo(db, o));
-    return NextResponse.json({ owner: publicUser(owner), outfits });
+    const stats = {
+      outfits: outfits.length,
+      friends: friendIdsOf(db, ownerId).length,
+      loans: db.requests.filter(
+        (r) => r.ownerId === ownerId && ["approved", "completed"].includes(r.status)
+      ).length,
+    };
+    return NextResponse.json({ owner: publicUser(owner), outfits, stats });
   }
 
   const visible = new Set([me.id, ...friendIdsOf(db, me.id)]);
@@ -76,7 +83,7 @@ export async function POST(req) {
   const me = await currentUser(db);
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { title, tags, note, kind, colors, imageDataUrl, existingImage } = await req.json();
+  const { title, tags, note, kind, colors, size, imageDataUrl, existingImage } = await req.json();
   if (!title || !title.trim()) {
     return NextResponse.json({ error: "Give the outfit a name." }, { status: 400 });
   }
@@ -119,7 +126,8 @@ export async function POST(req) {
     tags: cleanTags,
     kind,
     colors: cleanColors,
-    note: (note || "").trim(),
+    size: String(size || "").trim().slice(0, 12),
+    note: (note || "").trim().slice(0, 600),
     status: "available",
     createdAt: Date.now(),
   };

@@ -45,11 +45,20 @@ export async function PATCH(req, { params }) {
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const { id } = await params;
-  const { action } = await req.json();
+  const { action, note, size, title } = await req.json();
   const outfit = db.outfits.find((o) => o.id === id);
   if (!outfit) return NextResponse.json({ error: "Not found." }, { status: 404 });
   if (outfit.ownerId !== me.id) {
     return NextResponse.json({ error: "Only the owner can change this." }, { status: 403 });
+  }
+  // "edit" updates the description/size/title — e.g. filling in details on an
+  // item that was auto-added from the synced Lending album.
+  if (action === "edit") {
+    if (note !== undefined) outfit.note = String(note).trim().slice(0, 600);
+    if (size !== undefined) outfit.size = String(size).trim().slice(0, 12);
+    if (title !== undefined && String(title).trim()) outfit.title = String(title).trim();
+    writeDb(db);
+    return NextResponse.json({ outfit });
   }
   if (action !== "toggle-status") {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });

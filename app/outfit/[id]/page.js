@@ -17,6 +17,9 @@ export default function OutfitDetail({ params }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editNote, setEditNote] = useState("");
+  const [editSize, setEditSize] = useState("");
 
   function load() {
     fetch(`/api/outfits/${id}`)
@@ -48,6 +51,21 @@ export default function OutfitDetail({ params }) {
     setBusy(true);
     await fetch(`/api/outfits/${id}/interest`, { method: "POST" });
     setBusy(false);
+    load();
+  }
+
+  async function saveEdit() {
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/outfits/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "edit", note: editNote, size: editSize }),
+    });
+    const d = await res.json();
+    setBusy(false);
+    if (!res.ok) return setError(d.error || "Couldn't save.");
+    setEditing(false);
     load();
   }
 
@@ -103,17 +121,68 @@ export default function OutfitDetail({ params }) {
             </div>
             <div className="tags mb">
               <OutfitFacets outfit={o} />
+              {o.size && <span className="tag kind">Size {o.size}</span>}
               {o.tags.map((t) => (
                 <Link className="tag" key={t} href={`/search?tag=${encodeURIComponent(t)}`}>
                   {t}
                 </Link>
               ))}
             </div>
-            {o.note && <p className="muted">{o.note}</p>}
             {o.status !== "available" && o.expectedBack && (
-              <p className="muted mt">📦 Expected back {o.expectedBack}</p>
+              <p className="muted">📦 Expected back {o.expectedBack}</p>
             )}
           </div>
+        </div>
+
+        {/* description area — owners can fill this in any time, e.g. for items
+            auto-added from the synced Lending album with no details yet */}
+        <div className="card">
+          <div className="spread">
+            <h2 style={{ marginBottom: 0 }}>About this item</h2>
+            {isMine && !editing && (
+              <button
+                className="tag"
+                onClick={() => {
+                  setEditNote(o.note || "");
+                  setEditSize(o.size || "");
+                  setEditing(true);
+                }}
+              >
+                {o.note ? "Edit" : "Add description"}
+              </button>
+            )}
+          </div>
+          {editing ? (
+            <div className="mt">
+              <label>Description</label>
+              <textarea
+                rows={3}
+                maxLength={600}
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder={`e.g. "Wore this to a summer wedding. Size small but fits a little large. Very comfortable and flowy."`}
+              />
+              <label>Size</label>
+              <input
+                value={editSize}
+                onChange={(e) => setEditSize(e.target.value)}
+                placeholder="e.g. S, 6, 40R"
+                maxLength={12}
+              />
+              <div className="btn-row">
+                <button className="btn ghost" onClick={() => setEditing(false)}>Cancel</button>
+                <button className="btn" disabled={busy} onClick={saveEdit}>Save</button>
+              </div>
+            </div>
+          ) : o.note ? (
+            <p className="muted mt">{o.note}</p>
+          ) : (
+            <p className="muted small mt">
+              {isMine
+                ? "No description yet — add sizing notes, fit, and where you wore it."
+                : "The owner hasn't added a description yet."}
+            </p>
+          )}
         </div>
 
         {error && <div className="error">{error}</div>}

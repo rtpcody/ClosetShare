@@ -14,6 +14,7 @@ function UploadForm() {
   const [picked, setPicked] = useState(null); // {kind:'album', photo} | {kind:'file', dataUrl}
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState("");
+  const [size, setSize] = useState("");
   const [tags, setTags] = useState([]);
   const [colors, setColors] = useState([]);
   const [detecting, setDetecting] = useState(false);
@@ -73,7 +74,7 @@ function UploadForm() {
   async function submit() {
     setBusy(true);
     setError("");
-    const body = { title, tags, note, kind, colors };
+    const body = { title, tags, note, kind, size, colors };
     if (picked?.kind === "album") body.existingImage = picked.photo.image;
     if (picked?.kind === "file") body.imageDataUrl = picked.dataUrl;
     const res = await fetch("/api/outfits", {
@@ -168,6 +169,19 @@ function UploadForm() {
             </button>
           ))}
         </div>
+        <label>Size</label>
+        <input
+          list="size-suggestions"
+          value={size}
+          onChange={(e) => setSize(e.target.value)}
+          placeholder="e.g. S, 6, 40R"
+          maxLength={12}
+        />
+        <datalist id="size-suggestions">
+          {["XS", "S", "M", "L", "XL", "XXL", "0", "2", "4", "6", "8", "10", "12", "One size"].map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
         <label>Event style — how friends will find it</label>
         <div className="tags mb">
           {EVENT_TAGS.map((t) => (
@@ -214,12 +228,13 @@ function UploadForm() {
             </button>
           ))}
         </div>
-        <label>Notes for borrowers (size, fit, quirks)</label>
+        <label>Description — fit, feel, where you wore it</label>
         <textarea
-          rows={2}
+          rows={3}
+          maxLength={600}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Size M, runs a little long…"
+          placeholder={`e.g. "Wore this to a summer wedding. Fits a little large. Very comfortable and flowy."`}
         />
       </div>
 
