@@ -5,6 +5,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
+import { downloadReturnIcs } from "@/lib/ics";
 
 function timeAgo(ts) {
   const s = (Date.now() - ts) / 1000;
@@ -18,13 +19,14 @@ export default function Feed() {
   const [me, setMe] = useState(undefined);
   const [posts, setPosts] = useState([]);
   const [album, setAlbum] = useState([]);
-  const [nudge, setNudge] = useState(true);
+  const [returnDue, setReturnDue] = useState(null);
 
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((d) => {
         if (!d.user) return router.replace("/login");
+        if (!d.onboarding?.waiverAccepted) return router.replace("/onboarding/waiver");
         setMe(d.user);
       });
     fetch("/api/feed")
@@ -33,6 +35,15 @@ export default function Feed() {
     fetch("/api/album")
       .then((r) => (r.ok ? r.json() : { photos: [] }))
       .then((d) => setAlbum(d.photos || []));
+    // Return reminder: soonest return-by date among items I've borrowed.
+    fetch("/api/requests")
+      .then((r) => (r.ok ? r.json() : { outgoing: [] }))
+      .then((d) => {
+        const due = (d.outgoing || [])
+          .filter((r) => r.status === "approved" && r.returnBy)
+          .sort((a, b) => a.returnBy.localeCompare(b.returnBy))[0];
+        setReturnDue(due || null);
+      });
   }, [router]);
 
   if (me === undefined) return <div className="screen" />;
@@ -60,17 +71,21 @@ export default function Feed() {
           </div>
         )}
 
-        {nudge && (
+        {returnDue && returnDue.outfit && (
           <div className="banner calendar">
-            <div className="spread">
-              <h3>📅 Emma&rsquo;s wedding is in 12 days</h3>
-              <button className="tag" onClick={() => setNudge(false)}>✕</button>
-            </div>
-            <p className="muted small">
-              Need an outfit? <Link href="/search?tag=wedding">Browse friends&rsquo; wedding looks →</Link>
-              <br />
-              (Mock of the opt-in calendar nudge — event title + date only.)
+            <h3>📅 Return &ldquo;{returnDue.outfit.title}&rdquo; by {returnDue.returnBy}</h3>
+            <p className="muted small mb">
+              Send it back to {returnDue.owner?.name} the way it arrived —{" "}
+              {returnDue.handoff === "shipping" ? "prepaid return label" : "your meetup"}.
             </p>
+            <button
+              className="btn subtle block"
+              onClick={() =>
+                downloadReturnIcs(returnDue.outfit.title, returnDue.owner?.name || "owner", returnDue.returnBy)
+              }
+            >
+              Add return date to my calendar
+            </button>
           </div>
         )}
 
@@ -99,10 +114,17 @@ export default function Feed() {
               <StatusBadge status={p.status} />
             </div>
             <Link href={`/outfit/${p.id}`}>
-              <img className="post-img" src={p.image} alt={p.title} />
+              <img
+                className={`post-img ${p.status !== "available" ? "dim" : ""}`}
+                src={p.image}
+                alt={p.title}
+              />
             </Link>
             <div className="post-body">
               <div className="post-title">{p.title}</div>
+              {p.status !== "available" && p.expectedBack && (
+                <p className="muted small mb">Expected back {p.expectedBack}</p>
+              )}
               <div className="tags">
                 {p.tags.map((t) => (
                   <Link className="tag" key={t} href={`/search?tag=${encodeURIComponent(t)}`}>

@@ -59,7 +59,11 @@ function SearchInner() {
           {outfits.map((o) => (
             <Link className="closet-item" key={o.id} href={`/outfit/${o.id}`}>
               <StatusBadge status={o.status} />
-              <img src={o.image} alt={o.title} />
+              <img
+                className={o.status !== "available" ? "dim" : ""}
+                src={o.image}
+                alt={o.title}
+              />
               <div className="ci-body">
                 <div className="ci-title">{o.title}</div>
                 <div className="row" style={{ gap: 6 }}>

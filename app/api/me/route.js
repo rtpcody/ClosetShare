@@ -19,6 +19,10 @@ export async function GET() {
 
   return NextResponse.json({
     user: publicUser(me),
+    onboarding: {
+      waiverAccepted: !!me.waiverAccepted,
+      albumLinked: !!me.albumLinked,
+    },
     badges: { pendingFriendRequests, pendingBorrowRequests, newAlbumPhotos },
   });
 }

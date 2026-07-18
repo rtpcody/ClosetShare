@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDb, publicUser, findUser, friendIdsOf } from "@/lib/db";
+import { readDb, publicUser, findUser, friendIdsOf, withLoanInfo } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 
 // Strava-style activity feed: newest outfit posts from you + accepted friends.
@@ -12,7 +12,7 @@ export async function GET() {
   const posts = db.outfits
     .filter((o) => visible.has(o.ownerId))
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map((o) => ({ ...o, owner: publicUser(findUser(db, o.ownerId)) }));
+    .map((o) => ({ ...withLoanInfo(db, o), owner: publicUser(findUser(db, o.ownerId)) }));
 
   return NextResponse.json({ posts });
 }

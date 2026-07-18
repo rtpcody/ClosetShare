@@ -29,7 +29,7 @@ export async function POST(req) {
   const me = await currentUser(db);
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { outfitId, note, waiverAccepted } = await req.json();
+  const { outfitId, note } = await req.json();
   const outfit = db.outfits.find((o) => o.id === outfitId);
   if (!outfit) return NextResponse.json({ error: "Outfit not found." }, { status: 404 });
   if (outfit.ownerId === me.id) {
@@ -41,10 +41,10 @@ export async function POST(req) {
   if (outfit.status !== "available") {
     return NextResponse.json({ error: "This outfit isn't available right now." }, { status: 409 });
   }
-  if (!waiverAccepted) {
+  if (!me.waiverAccepted) {
     return NextResponse.json(
-      { error: "You must accept the borrower agreement to send a request." },
-      { status: 400 }
+      { error: "Sign the borrower agreement (in onboarding) before requesting." },
+      { status: 403 }
     );
   }
   const dupe = db.requests.find(
@@ -66,6 +66,7 @@ export async function POST(req) {
     ownerNote: null,
     handoff: null,
     shipping: null,
+    returnBy: null,
     waiverAccepted: true,
     createdAt: Date.now(),
   };

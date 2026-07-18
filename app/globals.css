@@ -258,6 +258,9 @@ label { font-size: 13px; font-weight: 600; color: var(--ink-soft); display: bloc
 .closet-item .ci-title { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
 .closet-item .badge { position: absolute; top: 8px; left: 8px; }
 
+/* Unavailable items fade in listings; the detail page stays full color. */
+img.dim { filter: grayscale(0.75) brightness(0.9); opacity: 0.55; }
+
 /* ---------- closet doors animation ---------- */
 .doors {
   position: fixed;

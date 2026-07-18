@@ -14,7 +14,7 @@ export async function PATCH(req, { params }) {
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const { id } = await params;
-  const { action, ownerNote } = await req.json();
+  const { action, ownerNote, returnBy } = await req.json();
   const r = db.requests.find((x) => x.id === id);
   if (!r) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const outfit = db.outfits.find((o) => o.id === r.outfitId);
@@ -44,6 +44,9 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Can't set a handoff for this request." }, { status: 403 });
     }
     r.handoff = action === "meetup" ? "meetup" : "shipping";
+    // Optional return-by date agreed when the loan starts; feeds the
+    // return reminder and the "expected back" hint on the listing.
+    if (returnBy && /^\d{4}-\d{2}-\d{2}$/.test(returnBy)) r.returnBy = returnBy;
     if (action === "ship") {
       // Mocked white-labeled prepaid label; a real integration (Shippo /
       // EasyPost / USPS Ground Advantage) replaces this later.

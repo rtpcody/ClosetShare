@@ -12,6 +12,7 @@ export default function Closet({ params }) {
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
   const [doors, setDoors] = useState(true);
+  const [needBy, setNeedBy] = useState("");
 
   useEffect(() => {
     fetch("/api/me").then((r) => r.json()).then((d) => setMe(d.user));
@@ -64,6 +65,27 @@ export default function Closet({ params }) {
               {owner.bio && <p className="muted mt">{owner.bio}</p>}
             </div>
             <div className="closet-rail" />
+            {!isMe && data.outfits.length > 0 && (
+              <div className="card">
+                <label>I need it for a date…</label>
+                <div className="row">
+                  <input
+                    type="date"
+                    style={{ marginBottom: 0 }}
+                    value={needBy}
+                    onChange={(e) => setNeedBy(e.target.value)}
+                  />
+                  {needBy && (
+                    <button className="tag" onClick={() => setNeedBy("")}>Clear</button>
+                  )}
+                </div>
+                {needBy && (
+                  <p className="muted small mt">
+                    Showing what&rsquo;s free (or expected back) by {needBy}.
+                  </p>
+                )}
+              </div>
+            )}
             {data.outfits.length === 0 ? (
               <div className="empty">
                 <div className="big">🧥</div>
@@ -72,16 +94,30 @@ export default function Closet({ params }) {
               </div>
             ) : (
               <div className="closet-grid">
-                {data.outfits.map((o) => (
-                  <Link className="closet-item" key={o.id} href={`/outfit/${o.id}`}>
-                    <StatusBadge status={o.status} />
-                    <img src={o.image} alt={o.title} />
-                    <div className="ci-body">
-                      <div className="ci-title">{o.title}</div>
-                      <div className="muted small">{o.tags.join(" · ")}</div>
-                    </div>
-                  </Link>
-                ))}
+                {data.outfits
+                  .filter(
+                    (o) =>
+                      !needBy ||
+                      o.status === "available" ||
+                      (o.expectedBack && o.expectedBack < needBy)
+                  )
+                  .map((o) => (
+                    <Link className="closet-item" key={o.id} href={`/outfit/${o.id}`}>
+                      <StatusBadge status={o.status} />
+                      <img
+                        className={o.status !== "available" ? "dim" : ""}
+                        src={o.image}
+                        alt={o.title}
+                      />
+                      <div className="ci-body">
+                        <div className="ci-title">{o.title}</div>
+                        <div className="muted small">{o.tags.join(" · ")}</div>
+                        {o.status !== "available" && o.expectedBack && (
+                          <div className="muted small">Back {o.expectedBack}</div>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
               </div>
             )}
           </>

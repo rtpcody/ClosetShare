@@ -28,6 +28,8 @@ export async function POST(req) {
     avatarEmoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
     bio: "",
     location: (location || "").trim(),
+    waiverAccepted: false,
+    albumLinked: false,
     createdAt: Date.now(),
   };
   db.users.push(user);

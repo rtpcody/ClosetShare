@@ -17,6 +17,7 @@ export default function Login() {
   const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ssoNote, setSsoNote] = useState(false);
 
   async function submit(path, body) {
     setBusy(true);
@@ -29,7 +30,8 @@ export default function Login() {
     const data = await res.json();
     setBusy(false);
     if (!res.ok) return setError(data.error || "Something went wrong.");
-    router.push("/");
+    // New accounts go through onboarding: waiver, then closet-folder setup.
+    router.push(path.includes("signup") ? "/onboarding/waiver" : "/");
   }
 
   return (
@@ -89,6 +91,20 @@ export default function Login() {
         </div>
       ) : (
         <div className="card">
+          <div className="btn-row mb">
+            <button className="btn ghost" onClick={() => setSsoNote(true)}>
+              Continue with Google
+            </button>
+            <button className="btn ghost" onClick={() => setSsoNote(true)}>
+              Continue with Facebook
+            </button>
+          </div>
+          {ssoNote && (
+            <p className="muted small mb">
+              Social sign-in arrives with the production build — create a username below for
+              now.
+            </p>
+          )}
           <label>Your name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Kim" />
           <label>Username</label>

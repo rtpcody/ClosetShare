@@ -4,10 +4,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
-
-const WAIVER = `Borrower agreement (prototype placeholder — real waiver needs legal review before launch):
-
-ClosetShare connects friends who lend clothing to each other. By sending a borrow request you agree that: (1) lending is a private arrangement between you and the owner; (2) ClosetShare is not responsible for damage, loss, late returns, or the condition of any item; (3) you will return the item promptly after your event in the condition you received it, via the same handoff method; (4) any disputes are resolved between you and the owner directly.`;
+import { WAIVER_TEXT } from "@/lib/waiver";
 
 export default function OutfitDetail({ params }) {
   const { id } = use(params);
@@ -15,7 +12,7 @@ export default function OutfitDetail({ params }) {
   const [me, setMe] = useState(null);
   const [modal, setModal] = useState(false);
   const [note, setNote] = useState("");
-  const [agree, setAgree] = useState(false);
+  const [showWaiver, setShowWaiver] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -36,13 +33,34 @@ export default function OutfitDetail({ params }) {
     const res = await fetch("/api/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ outfitId: id, note, waiverAccepted: agree }),
+      body: JSON.stringify({ outfitId: id, note }),
     });
     const d = await res.json();
     setBusy(false);
     if (!res.ok) return setError(d.error || "Couldn't send the request.");
     setModal(false);
     setSent(true);
+    load();
+  }
+
+  async function toggleInterest() {
+    setBusy(true);
+    await fetch(`/api/outfits/${id}/interest`, { method: "POST" });
+    setBusy(false);
+    load();
+  }
+
+  async function toggleStatus() {
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/outfits/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle-status" }),
+    });
+    const d = await res.json();
+    setBusy(false);
+    if (!res.ok) setError(d.error || "Couldn't update the item.");
     load();
   }
 
@@ -71,6 +89,7 @@ export default function OutfitDetail({ params }) {
       </div>
       <div className="screen">
         <div className="card post">
+          {/* Full color even when unavailable — the fade lives in listings only. */}
           <img className="post-img" src={o.image} alt={o.title} />
           <div className="post-body">
             <h1 style={{ fontSize: 22, marginBottom: 6 }}>{o.title}</h1>
@@ -89,9 +108,13 @@ export default function OutfitDetail({ params }) {
               ))}
             </div>
             {o.note && <p className="muted">{o.note}</p>}
+            {o.status !== "available" && o.expectedBack && (
+              <p className="muted mt">📦 Expected back {o.expectedBack}</p>
+            )}
           </div>
         </div>
 
+        {error && <div className="error">{error}</div>}
         {sent && (
           <div className="banner">
             <h3>Request sent 🎉</h3>
@@ -103,10 +126,38 @@ export default function OutfitDetail({ params }) {
         )}
 
         {isMine ? (
-          <p className="muted center">
-            This is your outfit. Borrow requests from friends will show up in{" "}
-            <Link href="/requests">Borrows</Link>.
-          </p>
+          <div className="card">
+            <h2>Item settings</h2>
+            {o.status === "on-loan" ? (
+              <p className="muted small">
+                Out on loan — manage the return from <Link href="/requests">Borrows</Link>.
+                Once real shipping lands, carrier tracking will flip this automatically at
+                pickup and return drop-off.
+              </p>
+            ) : (
+              <>
+                <p className="muted small mb">
+                  Need it for your own event? Take it off the shelf without waiting for a
+                  request.
+                </p>
+                <button className="btn subtle block" disabled={busy} onClick={toggleStatus}>
+                  {o.status === "available" ? "Mark as reserved" : "Mark as available"}
+                </button>
+              </>
+            )}
+            {data.interestedUsers && data.interestedUsers.length > 0 && (
+              <>
+                <hr className="divider" />
+                <p className="muted small mb">Waiting for this item:</p>
+                {data.interestedUsers.map((u) => (
+                  <div className="row mb" key={u.id}>
+                    <Avatar user={u} size="sm" />
+                    <span className="small">{u.name}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         ) : open ? (
           <div className="card">
             <div className="spread">
@@ -122,10 +173,17 @@ export default function OutfitDetail({ params }) {
             Request to borrow
           </button>
         ) : (
-          <p className="muted center">
-            This outfit is {o.status === "reserved" ? "reserved" : "out on loan"} right now — check
-            back after it&rsquo;s returned.
-          </p>
+          <div className="card">
+            <p className="muted mb">
+              This outfit is {o.status === "reserved" ? "reserved" : "out on loan"} right now.
+              {o.interestCount > 0 && ` ${o.interestCount} waiting.`}
+            </p>
+            <button className="btn subtle block" disabled={busy} onClick={toggleInterest}>
+              {data.myInterest
+                ? "✓ You're on the list — tap to remove"
+                : "I'm interested — tell me when it's back"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -133,7 +191,6 @@ export default function OutfitDetail({ params }) {
         <div className="modal-back" onClick={() => setModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Borrow &ldquo;{o.title}&rdquo;</h2>
-            {error && <div className="error">{error}</div>}
             <label>Add a note (optional)</label>
             <textarea
               rows={2}
@@ -141,15 +198,16 @@ export default function OutfitDetail({ params }) {
               onChange={(e) => setNote(e.target.value)}
               placeholder={`e.g. "Wedding on the 26th — I'd take great care of it!"`}
             />
-            <label>Borrower agreement</label>
-            <div className="waiver">{WAIVER}</div>
-            <label className="check-row">
-              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-              <span>I agree to the borrower agreement.</span>
-            </label>
+            <p className="muted small mb">
+              Covered by the Borrower &amp; Lender Agreement you signed at sign-up.{" "}
+              <button className="tag" onClick={() => setShowWaiver(!showWaiver)}>
+                {showWaiver ? "hide" : "view"}
+              </button>
+            </p>
+            {showWaiver && <div className="waiver">{WAIVER_TEXT}</div>}
             <div className="btn-row">
               <button className="btn ghost" onClick={() => setModal(false)}>Cancel</button>
-              <button className="btn" disabled={!agree || busy} onClick={sendRequest}>
+              <button className="btn" disabled={busy} onClick={sendRequest}>
                 Send request
               </button>
             </div>

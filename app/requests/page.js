@@ -4,6 +4,7 @@ import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
+import { downloadReturnIcs } from "@/lib/ics";
 
 function ShippingLabel({ shipping }) {
   return (
@@ -21,7 +22,8 @@ function ShippingLabel({ shipping }) {
       <div className="small">✅ {shipping.inbound} (prepaid)</div>
       <p className="small" style={{ marginTop: 8, fontFamily: "var(--sans)", color: "var(--ink-soft)" }}>
         Mock label — a real carrier/aggregator integration (e.g. USPS Ground Advantage via
-        Shippo/EasyPost) replaces this.
+        Shippo/EasyPost) replaces this. Tracking scans will then drive item status
+        automatically: picked up → on loan, return-dropped → in transit back.
       </p>
     </div>
   );
@@ -48,6 +50,7 @@ function DeclineForm({ onDecline, onCancel }) {
 function RequestCard({ r, role, onAction }) {
   const [declining, setDeclining] = useState(false);
   const [showLabel, setShowLabel] = useState(false);
+  const [returnBy, setReturnBy] = useState("");
   const other = role === "incoming" ? r.requester : r.owner;
   const sameCity =
     r.requester?.location &&
@@ -77,6 +80,9 @@ function RequestCard({ r, role, onAction }) {
           {r.note && <p className="muted small mt">“{r.note}”</p>}
           {r.ownerNote && (
             <p className="muted small mt">Owner&rsquo;s note: “{r.ownerNote}”</p>
+          )}
+          {r.returnBy && (
+            <p className="muted small mt">📅 Return by {r.returnBy}</p>
           )}
         </div>
       </div>
@@ -127,15 +133,31 @@ function RequestCard({ r, role, onAction }) {
               ? " You're in the same city — a public meetup is easiest."
               : " You're in different cities — shipping is the way."}
           </p>
-          <div className="btn-row mt">
-            <button className="btn ghost" onClick={() => onAction(r.id, "meetup")}>
+          <label className="mt" style={{ display: "block" }}>
+            When will you send it back?
+          </label>
+          <input
+            type="date"
+            value={returnBy}
+            onChange={(e) => setReturnBy(e.target.value)}
+          />
+          <div className="btn-row">
+            <button className="btn ghost" onClick={() => onAction(r.id, "meetup", null, returnBy)}>
               🤝 Local meetup
             </button>
-            <button className="btn" onClick={() => onAction(r.id, "ship")}>
+            <button className="btn" onClick={() => onAction(r.id, "ship", null, returnBy)}>
               📦 Ship it (~$9 round trip)
             </button>
           </div>
         </>
+      )}
+      {role === "outgoing" && r.status === "approved" && r.returnBy && (
+        <button
+          className="btn subtle block mt"
+          onClick={() => downloadReturnIcs(r.outfit?.title || "outfit", r.owner?.name || "owner", r.returnBy)}
+        >
+          📅 Add return date to my calendar
+        </button>
       )}
       {role === "outgoing" && r.handoff === "meetup" && r.status === "approved" && (
         <p className="muted small mt">
@@ -166,11 +188,11 @@ export default function Requests() {
   }
   useEffect(load, []);
 
-  async function act(id, action, ownerNote) {
+  async function act(id, action, ownerNote, returnBy) {
     await fetch(`/api/requests/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ownerNote }),
+      body: JSON.stringify({ action, ownerNote, returnBy }),
     });
     load();
   }

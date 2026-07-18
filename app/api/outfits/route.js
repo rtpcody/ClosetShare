@@ -8,6 +8,7 @@ import {
   findUser,
   areFriends,
   friendIdsOf,
+  withLoanInfo,
   uploadsDir,
   uid,
 } from "@/lib/db";
@@ -44,7 +45,8 @@ export async function GET(req) {
     }
     const outfits = db.outfits
       .filter((o) => o.ownerId === ownerId)
-      .sort((a, b) => b.createdAt - a.createdAt);
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((o) => withLoanInfo(db, o));
     return NextResponse.json({ owner: publicUser(owner), outfits });
   }
 
@@ -58,7 +60,7 @@ export async function GET(req) {
   }
   outfits = outfits
     .sort((a, b) => b.createdAt - a.createdAt)
-    .map((o) => ({ ...o, owner: publicUser(findUser(db, o.ownerId)) }));
+    .map((o) => ({ ...withLoanInfo(db, o), owner: publicUser(findUser(db, o.ownerId)) }));
   return NextResponse.json({ outfits });
 }
 
