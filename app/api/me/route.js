@@ -19,6 +19,7 @@ export async function GET() {
 
   return NextResponse.json({
     user: publicUser(me),
+    sizes: me.sizes || {},
     onboarding: {
       waiverAccepted: !!me.waiverAccepted,
       albumLinked: !!me.albumLinked,

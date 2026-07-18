@@ -22,7 +22,7 @@ export default function WaiverStep() {
 
   return (
     <div className="screen" style={{ paddingTop: 32 }}>
-      <p className="muted small center mb">Step 2 of 3</p>
+      <p className="muted small center mb">Step 2 of 4</p>
       <h1 className="center mb">One agreement, signed once</h1>
       <p className="muted center mb">
         So borrowing between friends stays simple — and everyone knows the deal.

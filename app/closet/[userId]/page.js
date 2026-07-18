@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState, use } from "react";
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
-import { KINDS, COLORS, kindLabel } from "@/lib/taxonomy";
+import { KINDS, COLORS } from "@/lib/taxonomy";
+import { fitsUser, hasAnySizes, EMPTY_SIZES } from "@/lib/sizeMatch";
 
 // Instagram-style closet: profile header (photo, stats, bio), then two tabs —
 // a quick-scroll square grid, and a filtered view with dropdowns. Entering
@@ -23,10 +24,11 @@ function GridCell({ o }) {
   );
 }
 
-function EditProfileModal({ me, onClose, onSaved }) {
+function EditProfileModal({ me, mySizes, onClose, onSaved }) {
   const [bio, setBio] = useState(me.bio || "");
   const [location, setLocation] = useState(me.location || "");
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
+  const [sizes, setSizes] = useState({ ...EMPTY_SIZES, ...(mySizes || {}) });
   const [busy, setBusy] = useState(false);
 
   function onFile(e) {
@@ -37,12 +39,16 @@ function EditProfileModal({ me, onClose, onSaved }) {
     reader.readAsDataURL(f);
   }
 
+  function setSize(key, value) {
+    setSizes((prev) => ({ ...prev, [key]: value }));
+  }
+
   async function save() {
     setBusy(true);
     await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bio, location, photoDataUrl: photoDataUrl || undefined }),
+      body: JSON.stringify({ bio, location, sizes, photoDataUrl: photoDataUrl || undefined }),
     });
     onSaved();
   }
@@ -62,10 +68,22 @@ function EditProfileModal({ me, onClose, onSaved }) {
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onFile} />
           </div>
         </div>
-        <label>Bio</label>
-        <textarea rows={2} maxLength={160} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A line about your closet…" />
+        <label>About you — your style, what&rsquo;s in your closet, anything</label>
+        <textarea rows={3} maxLength={160} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="e.g. Mostly wedding-guest looks, some vintage. Ask me about accessories." />
         <label>City</label>
         <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Austin, TX" />
+        <hr className="divider" />
+        <label>My sizes — used for &ldquo;only show my sizes&rdquo; filtering</label>
+        <div className="row mb">
+          <input style={{ marginBottom: 0 }} value={sizes.dress} onChange={(e) => setSize("dress", e.target.value)} placeholder="Dress" maxLength={12} />
+          <input style={{ marginBottom: 0 }} value={sizes.top} onChange={(e) => setSize("top", e.target.value)} placeholder="Top" maxLength={12} />
+          <input style={{ marginBottom: 0 }} value={sizes.bottom} onChange={(e) => setSize("bottom", e.target.value)} placeholder="Bottoms" maxLength={12} />
+        </div>
+        <label className="small">Shoes, from / to (e.g. 7.5 to 8)</label>
+        <div className="row mb">
+          <input style={{ marginBottom: 0 }} value={sizes.shoeMin} onChange={(e) => setSize("shoeMin", e.target.value)} placeholder="7.5" maxLength={12} />
+          <input style={{ marginBottom: 0 }} value={sizes.shoeMax} onChange={(e) => setSize("shoeMax", e.target.value)} placeholder="8" maxLength={12} />
+        </div>
         <div className="btn-row">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn" disabled={busy} onClick={save}>Save</button>
@@ -79,6 +97,7 @@ export default function Closet({ params }) {
   const { userId } = use(params);
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
+  const [mySizes, setMySizes] = useState(null);
   const [doors, setDoors] = useState(true);
   const [tab, setTab] = useState("grid"); // grid | filter
   const [editing, setEditing] = useState(false);
@@ -87,6 +106,7 @@ export default function Closet({ params }) {
   const [fSize, setFSize] = useState("");
   const [fEvent, setFEvent] = useState("");
   const [fDate, setFDate] = useState("");
+  const [fFitsMe, setFFitsMe] = useState(false);
 
   function load() {
     fetch(`/api/outfits?ownerId=${userId}`)
@@ -94,7 +114,12 @@ export default function Closet({ params }) {
       .then(setData);
   }
   useEffect(() => {
-    fetch("/api/me").then((r) => r.json()).then((d) => setMe(d.user));
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => {
+        setMe(d.user);
+        setMySizes(d.sizes || null);
+      });
     load();
     const t = setTimeout(() => setDoors(false), 1250);
     return () => clearTimeout(t);
@@ -133,12 +158,13 @@ export default function Closet({ params }) {
       (!fColor || (o.colors || []).includes(fColor)) &&
       (!fSize || o.size === fSize) &&
       (!fEvent || (o.tags || []).includes(fEvent)) &&
+      (!fFitsMe || fitsUser(o, mySizes)) &&
       (!fDate ||
         o.status === "available" ||
         (o.expectedBack && o.expectedBack < fDate))
   );
   const shown = tab === "filter" ? filtered : outfits;
-  const filtersActive = fKind || fColor || fSize || fEvent || fDate;
+  const filtersActive = fKind || fColor || fSize || fEvent || fDate || fFitsMe;
 
   return (
     <>
@@ -162,25 +188,33 @@ export default function Closet({ params }) {
           </div>
         ) : (
           <>
-            {/* profile header */}
-            <div className="ig-head">
+            {/* profile header: centered photo, name, contained stats, bio */}
+            <div className="profile-head">
               <Avatar user={owner} size="xl" />
-              <div className="ig-stats">
-                <div><strong>{data.stats?.outfits ?? outfits.length}</strong><span>outfits</span></div>
-                <div><strong>{data.stats?.friends ?? 0}</strong><span>friends</span></div>
-                <div><strong>{data.stats?.loans ?? 0}</strong><span>loans</span></div>
+              <div className="profile-name">{owner.name}</div>
+              <div className="profile-handle">
+                @{owner.username}{owner.location ? ` · ${owner.location}` : ""}
               </div>
             </div>
-            <div className="ig-bio">
-              <strong>{owner.name}</strong>
-              <span className="muted small"> @{owner.username}{owner.location ? ` · ${owner.location}` : ""}</span>
-              {owner.bio && <p>{owner.bio}</p>}
-              {isMe && (
-                <button className="btn subtle block mt" onClick={() => setEditing(true)}>
+            <div className="stats-bar">
+              <div><strong>{data.stats?.outfits ?? outfits.length}</strong><span>outfits</span></div>
+              <div><strong>{data.stats?.friends ?? 0}</strong><span>friends</span></div>
+              <div><strong>{data.stats?.loans ?? 0}</strong><span>loans</span></div>
+            </div>
+            {(owner.bio || isMe) && (
+              <div className="profile-bio">
+                {owner.bio ||
+                  "Add a few lines about you and your style so friends know what they'll find here."}
+              </div>
+            )}
+            {isMe && (
+              <div className="profile-actions">
+                <button className="btn subtle block" onClick={() => setEditing(true)}>
                   Edit profile
                 </button>
-              )}
-            </div>
+              </div>
+            )}
+            {!isMe && !owner.bio && <div style={{ height: 14 }} />}
 
             {/* tabs */}
             <div className="ig-tabs">
@@ -242,6 +276,16 @@ export default function Closet({ params }) {
                     <span className="muted small" style={{ alignSelf: "center" }}>Need-by date</span>
                   )}
                 </div>
+                {!isMe && hasAnySizes(mySizes) && (
+                  <label className="check-row" style={{ marginBottom: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={fFitsMe}
+                      onChange={(e) => setFFitsMe(e.target.checked)}
+                    />
+                    <span>Only show my sizes</span>
+                  </label>
+                )}
                 <p className="muted small center" style={{ padding: "2px 0 8px" }}>
                   {filtered.length} of {outfits.length} item{outfits.length === 1 ? "" : "s"}
                 </p>
@@ -269,11 +313,17 @@ export default function Closet({ params }) {
       {editing && me && (
         <EditProfileModal
           me={me}
+          mySizes={mySizes}
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);
             load();
-            fetch("/api/me").then((r) => r.json()).then((d) => setMe(d.user));
+            fetch("/api/me")
+              .then((r) => r.json())
+              .then((d) => {
+                setMe(d.user);
+                setMySizes(d.sizes || null);
+              });
           }}
         />
       )}

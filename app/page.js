@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import Avatar from "@/components/Avatar";
-import StatusBadge from "@/components/StatusBadge";
-import OutfitFacets from "@/components/OutfitFacets";
+import { kindLabel } from "@/lib/taxonomy";
 import { downloadReturnIcs } from "@/lib/ics";
 
 function timeAgo(ts) {
@@ -102,39 +101,34 @@ export default function Feed() {
           <article className="card post" key={p.id}>
             <div className="post-head">
               <Link href={`/closet/${p.owner.id}`}>
-                <Avatar user={p.owner} />
+                <Avatar user={p.owner} size="sm" />
               </Link>
-              <div style={{ flex: 1 }}>
-                <Link href={`/closet/${p.owner.id}`}>
-                  <div className="name">{p.owner.name}</div>
-                </Link>
-                <div className="muted small">
-                  added to their closet · {timeAgo(p.createdAt)}
-                </div>
-              </div>
-              <StatusBadge status={p.status} />
+              <Link href={`/closet/${p.owner.id}`} style={{ flex: 1 }}>
+                <span className="name">{p.owner.name}</span>
+              </Link>
+              <span className="muted small">{timeAgo(p.createdAt)}</span>
             </div>
-            <Link href={`/outfit/${p.id}`}>
+            <Link href={`/outfit/${p.id}`} className="post-media">
               <img
                 className={`post-img ${p.status !== "available" ? "dim" : ""}`}
                 src={p.image}
                 alt={p.title}
               />
-            </Link>
-            <div className="post-body">
-              <div className="post-title">{p.title}</div>
-              {p.status !== "available" && p.expectedBack && (
-                <p className="muted small mb">Expected back {p.expectedBack}</p>
+              {p.status !== "available" && (
+                <span className={`grid-dot ${p.status}`} title={p.status} />
               )}
-              <div className="tags">
-                <OutfitFacets outfit={p} />
-                {p.tags.map((t) => (
-                  <Link className="tag" key={t} href={`/search?tag=${encodeURIComponent(t)}`}>
-                    {t}
-                  </Link>
-                ))}
-              </div>
-              {p.note && <p className="muted mt">{p.note}</p>}
+            </Link>
+            <div className="post-body slim">
+              <Link href={`/outfit/${p.id}`} className="post-title">
+                {p.title}
+              </Link>
+              <span className="muted small">
+                {kindLabel(p.kind)}
+                {p.size ? ` · ${p.size}` : ""}
+                {p.status !== "available" && p.expectedBack
+                  ? ` · back ${p.expectedBack.slice(5).replace("-", "/")}`
+                  : ""}
+              </span>
             </div>
           </article>
         ))}

@@ -17,12 +17,12 @@ export default function FolderStep() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ step: "album" }),
     });
-    router.push("/");
+    router.push("/onboarding/sizes");
   }
 
   return (
     <div className="screen" style={{ paddingTop: 32 }}>
-      <p className="muted small center mb">Step 3 of 3</p>
+      <p className="muted small center mb">Step 3 of 4</p>
       <h1 className="center mb">Set up your closet folder</h1>
       <p className="muted center mb">
         ClosetShare only ever looks at one album you choose — never your whole camera roll.
@@ -59,12 +59,12 @@ export default function FolderStep() {
       </div>
 
       <button className="btn block" disabled={!linked || busy} onClick={finish}>
-        Finish setup — open my feed
+        Continue
       </button>
       <button
         className="btn ghost block mt"
         disabled={busy}
-        onClick={() => router.push("/")}
+        onClick={() => router.push("/onboarding/sizes")}
         style={{ borderColor: "var(--line)", color: "var(--ink-soft)" }}
       >
         Skip for now

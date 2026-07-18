@@ -7,6 +7,7 @@ import Avatar from "@/components/Avatar";
 import StatusBadge from "@/components/StatusBadge";
 import OutfitFacets from "@/components/OutfitFacets";
 import { KINDS, EVENT_TAGS, COLORS } from "@/lib/taxonomy";
+import { fitsUser, hasAnySizes } from "@/lib/sizeMatch";
 
 function SearchInner() {
   const params = useSearchParams();
@@ -14,7 +15,15 @@ function SearchInner() {
   const [query, setQuery] = useState(params.get("tag") || "");
   const [kind, setKind] = useState("");
   const [color, setColor] = useState("");
+  const [fitsMe, setFitsMe] = useState(false);
+  const [mySizes, setMySizes] = useState(null);
   const [outfits, setOutfits] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => setMySizes(d.sizes || null));
+  }, []);
 
   useEffect(() => {
     const qs = new URLSearchParams();
@@ -63,6 +72,12 @@ function SearchInner() {
           </button>
         ))}
       </div>
+      {hasAnySizes(mySizes) && (
+        <label className="check-row" style={{ marginBottom: 10 }}>
+          <input type="checkbox" checked={fitsMe} onChange={(e) => setFitsMe(e.target.checked)} />
+          <span>Only show my sizes</span>
+        </label>
+      )}
       <label>Color</label>
       <div className="tags mb">
         {Object.entries(COLORS).map(([name, hex]) => (
@@ -77,18 +92,21 @@ function SearchInner() {
         ))}
       </div>
 
-      {outfits === null ? null : outfits.length === 0 ? (
+      {(() => {
+        if (outfits === null) return null;
+        const shown = fitsMe ? outfits.filter((o) => fitsUser(o, mySizes)) : outfits;
+        return shown.length === 0 ? (
         <div className="empty">
           <div className="big">🕵️</div>
           <p>
-            {query || kind || color
+            {query || kind || color || fitsMe
               ? "Nothing in your friends' closets matches those filters yet."
               : "Follow friends to search their closets."}
           </p>
         </div>
       ) : (
         <div className="closet-grid">
-          {outfits.map((o) => (
+          {shown.map((o) => (
             <Link className="closet-item" key={o.id} href={`/outfit/${o.id}`}>
               <StatusBadge status={o.status} />
               <img
@@ -107,7 +125,8 @@ function SearchInner() {
             </Link>
           ))}
         </div>
-      )}
+      );
+      })()}
     </div>
   );
 }

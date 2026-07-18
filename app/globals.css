@@ -192,8 +192,17 @@ label { font-size: 13px; font-weight: 600; color: var(--ink-soft); display: bloc
 .post-head a { color: inherit; text-decoration: none; }
 .post-head .name { font-weight: 700; font-size: 14.5px; }
 .post-img { width: 100%; display: block; aspect-ratio: 4 / 5; object-fit: cover; }
+.post-media { display: block; position: relative; }
 .post-body { padding: 12px 14px 14px; }
+.post-body.slim {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px 12px;
+}
 .post-title { font-family: var(--serif); font-size: 17px; margin-bottom: 6px; }
+.post-body.slim .post-title { margin-bottom: 0; color: inherit; text-decoration: none; }
 
 /* ---------- tags & status ---------- */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -340,24 +349,36 @@ img.dim { filter: grayscale(0.75) brightness(0.9); opacity: 0.55; }
 @keyframes openR { 0%, 22% { transform: rotateY(0); } 100% { transform: rotateY(108deg); } }
 @keyframes doorsFade { 0%, 88% { opacity: 1; } 100% { opacity: 0; } }
 
-/* ---------- Instagram-style closet profile ---------- */
-.avatar.xl { width: 88px; height: 88px; font-size: 44px; }
-.ig-head {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 12px 18px 10px;
+/* ---------- closet profile ---------- */
+.avatar.xl { width: 104px; height: 104px; font-size: 52px; }
+.profile-head { text-align: center; padding: 8px 18px 0; }
+.profile-head .avatar {
+  margin: 0 auto 10px;
+  border: 3px solid var(--card);
+  box-shadow: 0 2px 10px rgba(43, 33, 24, 0.16);
 }
-.ig-stats {
-  flex: 1;
+.profile-name { font-family: var(--serif); font-size: 23px; font-weight: 700; }
+.profile-handle { color: var(--ink-soft); font-size: 13.5px; margin-top: 2px; }
+.stats-bar {
   display: flex;
-  justify-content: space-around;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 14px 18px 0;
+  padding: 10px 0;
+}
+.stats-bar > div { flex: 1; text-align: center; }
+.stats-bar > div + div { border-left: 1px solid var(--line); }
+.stats-bar strong { display: block; font-size: 17px; }
+.stats-bar span { font-size: 12px; color: var(--ink-soft); }
+.profile-bio {
+  padding: 12px 26px 14px;
   text-align: center;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
 }
-.ig-stats strong { display: block; font-size: 18px; }
-.ig-stats span { font-size: 12.5px; color: var(--ink-soft); }
-.ig-bio { padding: 0 18px 14px; font-size: 14px; }
-.ig-bio p { margin-top: 4px; color: var(--ink-soft); font-size: 13.5px; line-height: 1.4; }
+.profile-actions { padding: 0 18px 14px; }
 .ig-tabs {
   display: flex;
   border-top: 1px solid var(--line);

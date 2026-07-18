@@ -17,9 +17,16 @@ export async function PATCH(req) {
   const me = await currentUser(db);
   if (!me) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { bio, location, photoDataUrl } = await req.json();
+  const { bio, location, photoDataUrl, sizes } = await req.json();
   if (bio !== undefined) me.bio = String(bio).trim().slice(0, 160);
   if (location !== undefined) me.location = String(location).trim().slice(0, 60);
+  if (sizes !== undefined && typeof sizes === "object" && sizes !== null) {
+    const clean = {};
+    for (const key of ["dress", "top", "bottom", "shoeMin", "shoeMax"]) {
+      clean[key] = String(sizes[key] || "").trim().slice(0, 12);
+    }
+    me.sizes = clean;
+  }
   if (photoDataUrl) {
     const m = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(photoDataUrl);
     if (!m) return NextResponse.json({ error: "Unsupported photo format." }, { status: 400 });
